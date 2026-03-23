@@ -11,6 +11,7 @@ from tkinter import ttk
 import joblib
 import pandas as pd
 import os
+import sys
 import matplotlib
 matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
@@ -332,10 +333,42 @@ PROPERTY_MULTIPLIERS = {
 }
 PROPERTY_TYPES = list(PROPERTY_MULTIPLIERS.keys())
 
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "../models/house_model.pkl")
+# ── PyInstaller-compatible resource path ─────────────────────
+def _resource_path(relative):
+    """Works both in dev mode and when packaged as a .exe by PyInstaller."""
+    base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base, relative)
+
+def _find_model():
+    """
+    Find house_model.pkl in multiple locations:
+    1. Bundled inside .exe  (sys._MEIPASS)
+    2. Same folder as main.py  (dev)
+    3. ../models/ relative to main.py  (dev project structure)
+    4. Same folder as the .exe itself
+    """
+    candidates = [
+        # 1 — PyInstaller bundle (_MEIPASS)
+        _resource_path("house_model.pkl"),
+        # 2 — same folder as main.py
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "house_model.pkl"),
+        # 3 — ../models/ (original project layout)
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "models", "house_model.pkl"),
+        # 4 — next to the running .exe
+        os.path.join(os.path.dirname(sys.executable), "house_model.pkl"),
+    ]
+    for path in candidates:
+        if os.path.isfile(path):
+            return os.path.abspath(path)
+    # Return the most descriptive path for the error message
+    return candidates[2]
+
+MODEL_PATH = _find_model()
 
 
 def load_model():
+    if not os.path.isfile(MODEL_PATH):
+        raise FileNotFoundError(MODEL_PATH)
     return joblib.load(MODEL_PATH)
 
 
