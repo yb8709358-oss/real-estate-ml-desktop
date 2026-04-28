@@ -16,3 +16,4 @@ dist/
 *.exe
 *.pyz
 *.pkg
+output/

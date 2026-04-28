@@ -413,6 +413,12 @@ class RealEstateApp(ctk.CTk):
         self.minsize(820, 600)
         self.configure(fg_color=COLORS["bg"])
 
+        # ── Window icon ───────────────────────────────────────
+        # Call repeatedly to beat CustomTkinter's own icon override
+        self.after(300, self._set_icon)
+        self.after(800, self._set_icon)
+        self.after(1500, self._set_icon)
+
         # ── Scrollable main canvas ─────────────────────────────
         self._main_scroll = ctk.CTkScrollableFrame(self, fg_color=COLORS["bg"])
         self._main_scroll.pack(fill="both", expand=True)
@@ -423,6 +429,30 @@ class RealEstateApp(ctk.CTk):
         self._build_result_card()
         self._build_whatif_card()
         self._build_action_row()
+
+    def _windows_set_titlebar_icon(self):
+        """Override CTk's method that sets the blue feather — set our icon instead."""
+        icon_path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "app_icon.ico")
+        if not os.path.isfile(icon_path):
+            icon_path = _resource_path("app_icon.ico")
+        if os.path.isfile(icon_path):
+            try:
+                self.iconbitmap(icon_path)
+            except Exception:
+                pass
+
+    def _set_icon(self):
+        """Reinforce the icon after full init."""
+        icon_path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "app_icon.ico")
+        if not os.path.isfile(icon_path):
+            icon_path = _resource_path("app_icon.ico")
+        if os.path.isfile(icon_path):
+            try:
+                self.iconbitmap(icon_path)
+            except Exception:
+                pass
 
     # ══════════════════════════════════════════════════════════
     # HEADER
@@ -689,7 +719,8 @@ class RealEstateApp(ctk.CTk):
             model        = load_model()
             raw          = model.predict(pd.DataFrame([input_dict]))[0]
             multiplier   = PROPERTY_MULTIPLIERS.get(self.cb_proptype.get(), 1.0)
-            prediction   = raw * multiplier
+            INR_TO_MAD   = 0.11
+            prediction   = raw * multiplier * INR_TO_MAD
             prop_label   = self.cb_proptype.get().split("  ")[1]
             self.lbl_result.configure(
                 text=f"{prediction:,.0f} DH  ({prop_label})",
@@ -872,6 +903,15 @@ class RealEstateApp(ctk.CTk):
                           border_color=COLORS["toggle_border"],
                           text_color=COLORS["text_secondary"])
 
+        # ── Language combobox ──
+        self.lang_combo.configure(
+            fg_color=COLORS["toggle_bg"],
+            border_color=COLORS["toggle_border"],
+            button_color=COLORS["accent"],
+            button_hover_color=COLORS["accent_hover"],
+            dropdown_fg_color=COLORS["card"],
+            text_color=COLORS["text_secondary"])
+
         self.importance_btn.configure(fg_color=COLORS["input_bg"],
                                       hover_color=COLORS["card_border"],
                                       border_color=COLORS["accent"],
@@ -911,7 +951,8 @@ class RealEstateApp(ctk.CTk):
             model        = load_model()
             raw          = model.predict(pd.DataFrame([input_dict]))[0]
             multiplier   = PROPERTY_MULTIPLIERS.get(self.cb_proptype.get(), 1.0)
-            prediction   = raw * multiplier
+            INR_TO_MAD   = 0.11
+            prediction   = raw * multiplier * INR_TO_MAD
             prop_label   = self.cb_proptype.get().split("  ")[1]  # strip emoji
 
             save_prediction(input_dict["area"], input_dict["bedrooms"],
@@ -1113,7 +1154,8 @@ class RealEstateApp(ctk.CTk):
                     m          = load_model()
                     raw        = m.predict(pd.DataFrame([d]))[0]
                     multiplier = PROPERTY_MULTIPLIERS.get(fields["proptype"].get(), 1.0)
-                    results.append(raw * multiplier)
+                    INR_TO_MAD = 0.11   # Convert Indian Rupees → Moroccan Dirhams
+                    results.append(raw * multiplier * INR_TO_MAD)
                 except FileNotFoundError:
                     messagebox.showerror("Model Error",
                         T("err_model"))
@@ -1304,4 +1346,19 @@ class RealEstateApp(ctk.CTk):
 if __name__ == "__main__":
     init_db()
     app = RealEstateApp()
+
+    # ── Force icon after mainloop starts (most reliable approach) ──
+    ICON_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "app_icon.ico")
+    if not os.path.isfile(ICON_PATH):
+        ICON_PATH = _resource_path("app_icon.ico")
+
+    def force_icon():
+        if os.path.isfile(ICON_PATH):
+            try:
+                app.iconbitmap(ICON_PATH)
+            except Exception:
+                pass
+        app.after(2000, force_icon)  # keep re-applying every 2s
+
+    app.after(100, force_icon)
     app.mainloop()
